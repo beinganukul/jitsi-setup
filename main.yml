@@ -1,0 +1,121 @@
+- name: Create Azure VM
+  hosts: localhost
+  connection: local
+  tasks:
+  - name: Create resource group
+    azure_rm_resourcegroup:
+      name: csgo-jitsi
+      location: southindia
+  - name: Create virtual network
+    azure_rm_virtualnetwork:
+      resource_group: csgo-jitsi
+      name: myVnet
+      address_prefixes: 
+        - "10.0.0.0/16"
+        - "dead:dead:dead::/48"
+  - name: Add subnet
+    azure_rm_subnet:
+      resource_group: csgo-jitsi
+      name: mySubnet
+      address_prefixes: 
+        - "10.0.1.0/24"
+        - "dead:dead:dead::/64"
+      virtual_network: myVnet
+  - name: Create public IPv4 address
+    azure_rm_publicipaddress:
+      resource_group: csgo-jitsi
+      allocation_method: Static
+      name: myPublicIPv4
+      sku: standard
+      version: ipv4
+    register: output_ipv4_address
+  - name: Public IPv4 of VM
+    debug:
+      msg: "The public IP is {{ output_ipv4_address.state.ip_address }}."
+  - name: Create public IPv6 address
+    azure_rm_publicipaddress:
+      resource_group: csgo-jitsi
+      allocation_method: Static
+      sku: standard
+      name: myPublicIPv6
+      version: ipv6
+    register: output_ipv6_address
+  - name: Public IPv6 of VM
+    debug:
+      msg: "The public IP is {{ output_ipv6_address.state.ip_address }}."
+  - name: Create Network Security Group that opens Firewall
+    azure_rm_securitygroup:
+      resource_group: csgo-jitsi
+      name: myNetworkSecurityGroup
+      rules:
+        - name: All Ports
+          protocol: "*"
+          destination_port_range: "*"
+          access: Allow
+          priority: 1001
+          direction: Inbound
+  - name: Create virtual network interface card
+    azure_rm_networkinterface:
+      resource_group: csgo-jitsi
+      name: myNIC
+      virtual_network: myVnet
+      subnet: mySubnet
+      security_group: myNetworkSecurityGroup
+      ip_configurations:
+        - name: ipv4
+          public_ip_address_name: myPublicIPv4
+          primary: true
+          private_ip_address_version: "IPv4"
+        - name: ipv6
+          public_ip_address_name: myPublicIPv6
+          private_ip_address_version: "IPv6"
+          primary: false
+  - name: Create VM
+    azure_rm_virtualmachine:
+      resource_group: csgo-jitsi
+      name: myVM
+      vm_size: Standard_DS1_v2
+      admin_username: anukul
+      ssh_password_enabled: false
+      priority: Spot
+      ssh_public_keys:
+        - path: /home/anukul/.ssh/authorized_keys
+          key_data: "my public key from github.com/beinganukul.keys"
+      network_interfaces: myNIC
+      image:
+        offer: debian-10
+        publisher: Debian
+        sku: '10'
+        version: latest
+  - name : Create DNS record for ipv6
+    cloudflare_dns:
+      api_token: <from dash.cloudflare.com/profile/api-tokens>
+      type: AAAA
+      value: "{{ output_ipv6_address.state.ip_address }}"
+      domain: anukul.com.np
+      record: "jitsi"
+  - name : Create DNS record for ipv4
+    cloudflare_dns:
+      api_token: <from dash.cloudflare.com/profile/api-tokens>
+      type: A
+      value: "{{ output_ipv4_address.state.ip_address }}"
+      domain: anukul.com.np
+      record: "jitsi"
+
+- name: Install Required Packages
+  hosts: csgo-jitsi
+  become: yes
+  tasks:
+    - name: install packages
+      apt:
+        pkg:
+        - docker.io
+        - neovim
+        - vnstat
+        - htop
+        - docker-compose
+        - gcc
+        - gpg
+    - name: Run Jitsi Setup Script
+      ansible.builtin.script: ./jitsi.sh
+

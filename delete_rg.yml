@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Deleting resource group - "{{ name }}"
+      azure_rm_resourcegroup:
+        force_delete_nonempty: true
+        name: "{{ name }}"
+        state: absent
+      register: rg
+    - debug:
+        var: rg
+    - name: delete dns A record
+      cloudflare_dns:
+        api_token: <from dash.cloudflare.com/profile/api-tokens>
+        type: A
+        domain: anukul.com.np
+        record: "jitsi"
+        state: absent
+    - name: delete dns AAAA record
+      cloudflare_dns:
+        api_token: <from dash.cloudflare.com/profile/api-tokens>
+        type: AAAA
+        domain: anukul.com.np
+        record: "jitsi" 
+        state: absent
+ 
+ 
+
