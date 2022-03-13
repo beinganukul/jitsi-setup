@@ -3,7 +3,8 @@ cd ~/
 mkdir jitsi
 cd jitsi
 url=jitsi.anukul.com.np
-curl https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep "tarball_url" | grep -Eo 'https://[^\"]*' | xargs wget -O - | tar -xzv --strip-components 1
+#curl https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep "tarball_url" | grep -Eo 'https://[^\"]*' | xargs wget -O - | tar -xzv --strip-components 1
+wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/stable-6865.tar.gz -O - | tar -xzv --strip-components 1
 sed "s/#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/$url/" env.example  > .env
 echo "DESKTOP_SHARING_FRAMERATE_MIN=15 
 DESKTOP_SHARING_FRAMERATE_MAX=60 
